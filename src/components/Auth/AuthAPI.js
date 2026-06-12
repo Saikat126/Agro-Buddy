@@ -103,6 +103,10 @@ export async function requestPasswordReset(email) {
 
 // Updates the current user's password. Only valid during a PASSWORD_RECOVERY session.
 export async function updatePassword(newPassword) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    throw new Error('Your reset link has expired. Please request a new password reset email.');
+  }
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
 }

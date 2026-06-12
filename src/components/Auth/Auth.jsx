@@ -106,7 +106,7 @@ export default function Auth({ onAuthSuccess, forceMode, onResetDone }) {
       setSuccess('Password updated! You can now sign in with your new password.');
       setTimeout(() => onResetDone?.(), 2000);
     } catch (err) {
-      setError('Failed to update password. Please try again.');
+      setError(err.message || 'Failed to update password. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -235,6 +235,15 @@ export default function Auth({ onAuthSuccess, forceMode, onResetDone }) {
         {mode === 'forgot' && (
           <p className="auth-switch">
             <button className="auth-switch-btn" onClick={() => switchMode('signin')} type="button">← Back to Sign In</button>
+          </p>
+        )}
+
+        {/* Let the user request a fresh link if the reset session has expired */}
+        {mode === 'reset' && error && (
+          <p className="auth-switch">
+            <button className="auth-switch-btn" onClick={() => switchMode('forgot')} type="button">
+              Request a new reset link
+            </button>
           </p>
         )}
 
