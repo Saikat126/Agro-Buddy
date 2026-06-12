@@ -1,0 +1,99 @@
+/* ─── VetFinder Styles ───────────────────────────────────────────────────── */
+
+/* Header row: title on left, add button on right */
+.vf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+/* Form title */
+.vf-form-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 16px;
+}
+
+/* Two-column form row */
+.vf-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Full-width search bar with spacing below */
+.vf-search {
+  margin-bottom: 20px;
+}
+
+/* Responsive vet card grid */
+.vf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+/* Individual vet card */
+.vf-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.vf-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Vet name */
+.vf-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.2px;
+}
+
+/* Detail list */
+.vf-details {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  flex: 1;   /* pushes vf-actions to the bottom of the card */
+}
+
+.vf-details li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vf-icon {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+/* Tap-to-call / tap-to-email links */
+.vf-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.vf-link:hover {
+  text-decoration: underline;
+}
+
+/* Card footer: remove button right-aligned */
+.vf-actions {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+  margin-top: 2px;
+}

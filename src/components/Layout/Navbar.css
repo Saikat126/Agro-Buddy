@@ -1,0 +1,327 @@
+/* ─── Navbar Styles ───────────────────────────────────────────────────────── */
+
+/* Cart icon button */
+.navbar-cart-btn {
+  position: relative;
+  background: transparent;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin-right: 8px;
+  line-height: 1;
+}
+
+/* Red badge showing item count */
+.navbar-cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -2px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #0f2417 0%, #1a3d2b 60%, #0f2c1e 100%);
+  padding: 0 32px;
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 200;   /* High z-index so dropdown sits above all page content */
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06), 0 4px 24px rgba(0,0,0,0.35);
+  border-bottom: 1px solid rgba(52, 211, 153, 0.15);
+}
+
+/* ── Brand ── */
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.navbar-logo-img {
+  height: 50px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+  transition: transform 0.2s ease;
+}
+
+.navbar-logo-img:hover {
+  transform: scale(1.05);
+}
+
+.navbar-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  background: linear-gradient(90deg, #ffffff 0%, #6ee7b7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Tab list ── */
+.navbar-tabs {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  flex: 1;             /* Fill the middle space between brand and auth section */
+  justify-content: center;
+}
+
+.navbar-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.84rem;
+  font-weight: 500;
+  padding: 7px 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+  white-space: nowrap;
+}
+
+.navbar-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.navbar-btn.active {
+  background: rgba(52, 211, 153, 0.18);
+  color: #34d399;
+  font-weight: 700;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+/* ── Auth wrapper — contains the button/avatar AND the dropdown panel ── */
+.navbar-auth-wrap {
+  position: relative;   /* Dropdown is positioned relative to this container */
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Logged-out: Sign In button ── */
+.navbar-signin-btn {
+  background: rgba(52, 211, 153, 0.18);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #34d399;
+  border-radius: 8px;
+  padding: 8px 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+  white-space: nowrap;
+}
+
+.navbar-signin-btn:hover {
+  background: rgba(52, 211, 153, 0.3);
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.25);
+}
+
+/* ── Logged-in: user section ── */
+.navbar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Circle avatar with first letter of user's name */
+.navbar-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(52, 211, 153, 0.2);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #34d399;
+  font-size: 0.9rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.navbar-user-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+}
+
+.navbar-signout {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.55);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  white-space: nowrap;
+}
+
+.navbar-signout:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+/* ── Auth Dropdown Panel ── */
+.nav-auth-panel {
+  position: absolute;
+  top: calc(100% + 12px);   /* 12px gap below the navbar button */
+  right: 0;                 /* Aligns right edge with the Sign In button */
+  width: 320px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18), 0 6px 16px rgba(0,0,0,0.1);
+  padding: 24px 24px 20px;
+  z-index: 300;             /* Above everything else on the page */
+  /* Subtle slide-down entrance animation */
+  animation: panelSlideDown 0.18s ease;
+}
+
+/* Slide-down keyframe animation for the dropdown */
+@keyframes panelSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Small decorative arrow pointing up toward the Sign In button */
+.nav-auth-panel::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  right: 24px;
+  width: 13px;
+  height: 13px;
+  background: #ffffff;
+  border-left: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+  transform: rotate(45deg);   /* Diamond rotated to make a triangle arrow */
+}
+
+/* Panel title */
+.nap-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+/* Sign In / Sign Up toggle inside panel */
+.nap-tabs {
+  display: flex;
+  background: var(--color-bg);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 18px;
+  gap: 3px;
+}
+
+.nap-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nap-tab.active {
+  background: #ffffff;
+  color: var(--color-primary);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+/* Form inputs stacked vertically */
+.nap-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Slightly smaller inputs so they fit the compact panel */
+.nap-input {
+  padding: 9px 12px;
+  font-size: 0.88rem;
+}
+
+/* Error message inside panel */
+.nap-error {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  text-align: center;
+}
+
+/* Full-width submit button */
+.nap-submit {
+  width: 100%;
+  justify-content: center;
+  padding: 10px;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  margin-top: 2px;
+}
+
+.nap-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Switch mode text line */
+.nap-switch {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: 14px;
+}
+
+.nap-switch-btn {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.nap-switch-btn:hover {
+  color: var(--color-primary-dk);
+}
