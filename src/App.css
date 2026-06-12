@@ -1,0 +1,222 @@
+/* ─── Global App Styles — Modern Design System ───────────────────────────── */
+
+/* CSS custom properties (design tokens) — change one value to retheme the app */
+:root {
+  --color-bg:         #f0f4f1;       /* Soft sage-white page background */
+  --color-surface:    #ffffff;       /* Card / panel surface */
+  --color-border:     #e2ebe4;       /* Subtle border between elements */
+  --color-primary:    #16a34a;       /* Emerald-600: primary actions */
+  --color-primary-dk: #15803d;       /* Emerald-700: hover state */
+  --color-primary-lt: #dcfce7;       /* Emerald-100: light badge background */
+  --color-accent:     #34d399;       /* Emerald-400: highlights, active states */
+  --color-danger:     #ef4444;       /* Red-500: delete / error */
+  --color-danger-dk:  #dc2626;       /* Red-600: hover */
+  --color-text:       #111827;       /* Gray-900: body text */
+  --color-text-muted: #6b7280;       /* Gray-500: secondary text */
+  --color-text-light: #9ca3af;       /* Gray-400: placeholder / disabled */
+  --radius-sm:        6px;
+  --radius-md:        10px;
+  --radius-lg:        14px;
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg:  0 10px 30px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.05);
+}
+
+/* Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Base typography */
+body {
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;   /* Crisp text on macOS / high-DPI screens */
+  min-height: 100vh;
+}
+
+/* App shell */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Scrollable content area below the navbar */
+.app-content {
+  flex: 1;
+  padding: 32px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Home page breaks out of the container — full width, no padding */
+.app-content--home {
+  padding: 0;
+  max-width: 100%;
+}
+
+/* ── Shared Card ─────────────────────────────────────────────────────────── */
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  padding: 22px 26px;
+  margin-bottom: 18px;
+}
+
+/* ── Section Title ───────────────────────────────────────────────────────── */
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.4px;
+  margin-bottom: 20px;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+/* Primary — solid emerald */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 9px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.1s ease;
+  box-shadow: 0 1px 3px rgba(22,163,74,0.3);
+  letter-spacing: 0.1px;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-dk);
+  box-shadow: 0 4px 12px rgba(22,163,74,0.35);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Danger — solid red */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  color: var(--color-danger);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.btn-danger:hover {
+  background: var(--color-danger);
+  color: #fff;
+  border-color: var(--color-danger);
+}
+
+/* ── Form Inputs ─────────────────────────────────────────────────────────── */
+.input-field {
+  width: 100%;
+  padding: 9px 13px;
+  background: #f9fafb;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.92rem;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  font-family: inherit;
+}
+
+.input-field:focus {
+  background: #fff;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(22,163,74,0.12);
+}
+
+.input-field::placeholder {
+  color: var(--color-text-light);
+}
+
+/* ── Status text helpers ─────────────────────────────────────────────────── */
+.ap-loading {
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 12px 0;
+}
+
+.ap-error {
+  color: var(--color-danger);
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #fef2f2;
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+
+.ap-empty {
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+  text-align: center;
+  padding: 40px 0;
+}
+
+/* ── Auth loading / sign-in prompt ──────────────────────────────────────────── */
+.app-auth-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.app-signin-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.app-signin-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 48px 56px;
+  text-align: center;
+  max-width: 420px;
+}
+
+.app-signin-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: 12px;
+}
+
+.app-signin-desc {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
