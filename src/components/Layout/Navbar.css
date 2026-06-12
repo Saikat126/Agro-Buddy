@@ -325,3 +325,44 @@
 .nap-switch-btn:hover {
   color: var(--color-primary-dk);
 }
+
+/* Forgot password link inside sign-in form */
+.nap-forgot-link {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: right;
+  align-self: flex-end;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s;
+}
+
+.nap-forgot-link:hover {
+  color: var(--color-primary);
+}
+
+/* Subtitle shown in forgot-password mode */
+.nap-forgot-sub {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+/* Success message inside panel */
+.nap-success {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  padding: 8px 12px;
+  text-align: center;
+}

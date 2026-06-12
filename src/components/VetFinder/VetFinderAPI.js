@@ -1,36 +1,27 @@
-// ─── VetFinderAPI.js — All CRUD operations for the vets table ────────────────
-
 import { supabase } from '../../supabase/supabaseClient';
 
 
-// ── validateVetData ───────────────────────────────────────────────────────────
-// Client-side validation before INSERT or UPDATE.
-//
-// @param data — vet fields from the form
-// @returns    — errors object or null
+// Name is the only required field. Phone and email are optional,
+// but if the user fills them in we at least sanity-check the format.
 export function validateVetData(data) {
   const errors = {};
 
-  // Name is the only truly required field.
   if (!data.name || !data.name.trim()) {
     errors.name = 'Vet name is required.';
   }
 
-  // Phone: if provided, basic check — at least 7 digits.
   if (data.phone) {
-    // Replace everything that's not a digit, then check the length.
+    // Strip everything that isn't a digit and check the length
     const digits = data.phone.replace(/\D/g, '');
     if (digits.length < 7) {
       errors.phone = 'Phone number must contain at least 7 digits.';
     }
   }
 
-  // Email: if provided, must look like an email.
   if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
     errors.email = 'Please enter a valid email address.';
   }
 
-  // Rating: if provided, must be between 0 and 5.
   if (data.rating !== undefined && data.rating !== null && data.rating !== '') {
     const r = Number(data.rating);
     if (isNaN(r) || r < 0 || r > 5) {
@@ -42,50 +33,36 @@ export function validateVetData(data) {
 }
 
 
-// ── fetchVets ─────────────────────────────────────────────────────────────────
-// Retrieves all public vets visible to the current user.
-// RLS automatically applies the policy:
-//   is_public = TRUE  OR  auth.uid() = user_id
-//
-// Returns: array of vet objects.
+// Fetches all vets visible to the current user.
+// The RLS policy handles the filter: public vets OR vets added by this user.
 export async function fetchVets() {
   const { data, error } = await supabase
     .from('vets')
     .select('*')
-    .order('name', { ascending: true });  
+    .order('name', { ascending: true });
 
   if (error) throw error;
   return data;
 }
 
 
-// ── searchVets ────────────────────────────────────────────────────────────────
-// Filters vets by name/specialty (text search) and/or location.
-// Both parameters are optional — if both are empty, returns all visible vets.
-//
-// @param query    — keyword to search in name, specialty, and clinic fields
-// @param location — city/area string to filter by (e.g., 'Dhaka')
-// Returns: array of matching vet objects.
+// Searches vets by name, specialty, clinic, and location in a single OR clause
+// so one search term like "Dhaka" matches vets in that area, not just vets named "Dhaka...".
+// The separate location param is there for callers that want an explicit location filter
+// on top of a text search — not used by the UI currently but handy for future use.
 export async function searchVets(query, location) {
-  // Start building the query
   let request = supabase
     .from('vets')
     .select('*')
     .order('name', { ascending: true });
 
-  // ── Search across name, specialty, clinic AND location in one OR clause ─────
-  // Including location here means a single search term like "Dhaka" matches
-  // vets in that area, not just vets whose name contains "Dhaka".
   if (query && query.trim()) {
     const term = `%${query.trim()}%`;
-
     request = request.or(
       `name.ilike.${term},specialty.ilike.${term},clinic.ilike.${term},location.ilike.${term}`
     );
   }
 
-  // The separate location parameter is kept for callers that want an explicit
-  // location filter on top of a name/specialty search.
   if (location && location.trim()) {
     request = request.ilike('location', `%${location.trim()}%`);
   }
@@ -96,28 +73,22 @@ export async function searchVets(query, location) {
 }
 
 
-// ── fetchAvailableVets ────────────────────────────────────────────────────────
-// Retrieves only vets who are currently available for farm visits / appointments.
-//
-// Returns: array of available vet objects.
+// Fetches only vets who are flagged as currently available.
+// Results are ordered by rating so the best-rated vets come first.
 export async function fetchAvailableVets() {
   const { data, error } = await supabase
     .from('vets')
     .select('*')
-    .eq('available', true)          
-    .order('rating', { ascending: false });  
+    .eq('available', true)
+    .order('rating', { ascending: false });
 
   if (error) throw error;
   return data;
 }
 
 
-// ── createVet ─────────────────────────────────────────────────────────────────
-// Adds a new vet record to the database.
-//
-// @param vetData — { name, specialty?, clinic?, phone?, email?, location?,
-//                   rating?, available?, is_public? }
-// Returns: the newly created vet object.
+// Adds a new vet to the shared directory.
+// available and is_public default to true so the vet shows up for everyone immediately.
 export async function createVet(vetData) {
   const errors = validateVetData(vetData);
   if (errors) throw new Error(JSON.stringify(errors));
@@ -148,12 +119,7 @@ export async function createVet(vetData) {
 }
 
 
-// ── updateVet ─────────────────────────────────────────────────────────────────
-// Edits an existing vet record.
-//
-// @param id      — UUID of the vet record to update
-// @param vetData — updated fields
-// Returns: the updated vet object.
+// Updates a vet's details.
 export async function updateVet(id, vetData) {
   const errors = validateVetData(vetData);
   if (errors) throw new Error(JSON.stringify(errors));
@@ -181,17 +147,12 @@ export async function updateVet(id, vetData) {
 }
 
 
-// ── updateVetAvailability ─────────────────────────────────────────────────────
-// Toggles a vet's availability (available / unavailable) without editing
-// all their other details. Used for a quick "toggle" button in the UI.
-//
-// @param id        — UUID of the vet record
-// @param available — new boolean value (true = taking appointments)
-// Returns: the updated vet object.
+// Quick toggle for availability — used instead of a full update when you
+// just want to flip the "taking appointments" switch.
 export async function updateVetAvailability(id, available) {
   const { data, error } = await supabase
     .from('vets')
-    .update({ available })   
+    .update({ available })
     .eq('id', id)
     .select()
     .single();
@@ -201,11 +162,7 @@ export async function updateVetAvailability(id, available) {
 }
 
 
-// ── deleteVet ─────────────────────────────────────────────────────────────────
-// Permanently deletes a vet record.
-//
-// @param id — UUID of the vet record to delete
-// Returns: nothing (void).
+// Permanently removes a vet record. RLS makes sure you can only delete your own.
 export async function deleteVet(id) {
   const { error } = await supabase
     .from('vets')

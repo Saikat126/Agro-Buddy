@@ -1,19 +1,13 @@
-// ─── CalendarAPI.js — All CRUD operations for calendar_events ────────────────
-
 import { supabase } from '../../supabase/supabaseClient';
 
 
-// ── EVENT_TYPES ───────────────────────────────────────────────────────────────
-// Mirror of the CHECK constraint in 04_calendar_table.sql.
-// Export this constant so the UI can build a type dropdown from it.
+// Mirrors the CHECK constraint in the database migration.
+// Export so the UI can build the type dropdown from the same list.
 export const EVENT_TYPES = ['vet', 'harvest', 'market', 'medication', 'other'];
 
 
-// ── validateEventData ─────────────────────────────────────────────────────────
-// Client-side validation before INSERT or UPDATE.
-//
-// @param data — event fields from the form
-// @returns    — errors object or null
+// Validates an event before insert or update.
+// event_date is required because you can't put an event on a calendar without a date.
 export function validateEventData(data) {
   const errors = {};
 
@@ -21,15 +15,12 @@ export function validateEventData(data) {
     errors.title = 'Event title is required.';
   }
 
-  // event_date is required — you can't show an event on a calendar without a date.
   if (!data.event_date) {
     errors.event_date = 'Event date is required.';
   } else if (isNaN(Date.parse(data.event_date))) {
-    // Date.parse('not-a-date') returns NaN — catch malformed date strings.
     errors.event_date = 'Event date must be a valid date (YYYY-MM-DD).';
   }
 
-  // Validate event_type if provided.
   if (data.event_type && !EVENT_TYPES.includes(data.event_type)) {
     errors.event_type = `Event type must be one of: ${EVENT_TYPES.join(', ')}.`;
   }
@@ -38,9 +29,8 @@ export function validateEventData(data) {
 }
 
 
-// ── fetchEvents ───────────────────────────────────────────────────────────────
-// Retrieves ALL events for the current user, sorted by date (soonest first)
-// Returns: array of event objects.
+// Fetches all events for the current user, sorted by date ascending
+// so the closest upcoming events appear first.
 export async function fetchEvents() {
   const { data, error } = await supabase
     .from('calendar_events')
@@ -52,29 +42,22 @@ export async function fetchEvents() {
 }
 
 
-// ── fetchEventsByMonth ────────────────────────────────────────────────────────
-// Retrieves all events that fall within a specific calendar month.
-//
-// @param year  — 4-digit year (number), e.g. 2026
-// @param month — 1-indexed month (number), e.g. 6 for June
-// Returns: array of event objects in that month.
+// Fetches events for a specific month. Useful if you want to lazy-load
+// one month at a time instead of pulling everything upfront.
 export async function fetchEventsByMonth(year, month) {
-  // Pad the month to two digits: month=6 → '06'
   const mm = String(month).padStart(2, '0');
-
-  // First day of the month: e.g. '2026-06-01'
   const startDate = `${year}-${mm}-01`;
 
-  // Last day of the month: we use a trick — go to the 1st of NEXT month, then
-  // subtract 1 day, to correctly handle months with 28/29/30/31 days.
-  const lastDay = new Date(year, month, 0).getDate(); // month (not month-1) gives last day
+  // new Date(year, month, 0) gives the last day of the *previous* month,
+  // which happens to be the last day of the month we actually want
+  const lastDay = new Date(year, month, 0).getDate();
   const endDate  = `${year}-${mm}-${String(lastDay).padStart(2, '0')}`;
 
   const { data, error } = await supabase
     .from('calendar_events')
     .select('*')
-    .gte('event_date', startDate)  // event_date >= '2026-06-01'
-    .lte('event_date', endDate)    // event_date <= '2026-06-30'
+    .gte('event_date', startDate)
+    .lte('event_date', endDate)
     .order('event_date', { ascending: true });
 
   if (error) throw error;
@@ -82,11 +65,7 @@ export async function fetchEventsByMonth(year, month) {
 }
 
 
-// ── fetchEventsByType ─────────────────────────────────────────────────────────
-// Retrieves events filtered by a specific type (e.g., show only vet visits).
-//
-// @param eventType — one of EVENT_TYPES: 'vet', 'harvest', 'market', etc.
-// Returns: array of events of that type.
+// Fetches only events of a given type — e.g., show only vet visits.
 export async function fetchEventsByType(eventType) {
   if (!EVENT_TYPES.includes(eventType)) {
     throw new Error(`Invalid event type: "${eventType}". Must be one of: ${EVENT_TYPES.join(', ')}.`);
@@ -103,11 +82,7 @@ export async function fetchEventsByType(eventType) {
 }
 
 
-// ── createEvent ───────────────────────────────────────────────────────────────
-// Saves a new calendar event.
-//
-// @param eventData — { title, event_date, event_type?, notes?, animal_id? }
-// Returns: the newly created event object.
+// Saves a new event. completed defaults to false — the user can mark it done later.
 export async function createEvent(eventData) {
   const errors = validateEventData(eventData);
   if (errors) throw new Error(JSON.stringify(errors));
@@ -121,9 +96,9 @@ export async function createEvent(eventData) {
       user_id:    user.id,
       title:      eventData.title.trim(),
       event_date: eventData.event_date,
-      event_type: eventData.event_type || 'other', 
+      event_type: eventData.event_type || 'other',
       notes:      eventData.notes      || null,
-      completed:  false,                             
+      completed:  false,
       animal_id:  eventData.animal_id  || null,
     }])
     .select()
@@ -134,12 +109,7 @@ export async function createEvent(eventData) {
 }
 
 
-// ── updateEvent ───────────────────────────────────────────────────────────────
-// Edits the fields of an existing event.
-//
-// @param id        — UUID of the event to update
-// @param eventData — updated fields
-// Returns: the updated event object.
+// Edits an existing event's details.
 export async function updateEvent(id, eventData) {
   const errors = validateEventData(eventData);
   if (errors) throw new Error(JSON.stringify(errors));
@@ -162,17 +132,11 @@ export async function updateEvent(id, eventData) {
 }
 
 
-// ── markEventComplete ─────────────────────────────────────────────────────────
-// Marks an event as completed (or un-marks it).
-// Useful for tracking "vet visit done", "harvest finished", etc.
-//
-// @param id        — UUID of the event
-// @param completed — true = done, false = not done
-// Returns: the updated event object.
+// Marks an event done (or un-marks it). Useful for tracking "vet visit completed", etc.
 export async function markEventComplete(id, completed) {
   const { data, error } = await supabase
     .from('calendar_events')
-    .update({ completed })   // only this one column changes
+    .update({ completed })
     .eq('id', id)
     .select()
     .single();
@@ -182,11 +146,7 @@ export async function markEventComplete(id, completed) {
 }
 
 
-// ── deleteEvent ───────────────────────────────────────────────────────────────
-// Permanently deletes a calendar event.
-//
-// @param id — UUID of the event to delete
-// Returns: nothing (void).
+// Permanently deletes a single event.
 export async function deleteEvent(id) {
   const { error } = await supabase
     .from('calendar_events')
@@ -197,19 +157,16 @@ export async function deleteEvent(id) {
 }
 
 
-// ── deletePastEvents ──────────────────────────────────────────────────────────
-// Deletes all events whose event_date is strictly before today.
-// Called automatically on calendar load so stale events are purged from the DB.
-// RLS ensures only the current user's own events are deleted.
-//
-// Returns: nothing (void).
+// Deletes all events whose date has already passed.
+// Called automatically on calendar load so stale events don't pile up.
+// RLS ensures users can only delete their own events even though this runs for everyone.
 export async function deletePastEvents() {
-  const today = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
+  const today = new Date().toISOString().split('T')[0];
 
   const { error } = await supabase
     .from('calendar_events')
     .delete()
-    .lt('event_date', today);
+    .lt('event_date', today); // strictly less than today — today's events stay
 
   if (error) throw error;
 }

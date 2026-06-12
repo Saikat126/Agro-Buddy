@@ -1,31 +1,21 @@
-// ─── AnimalProfilesAPI.js — All CRUD operations for the animals table ─────────
-
 import { supabase } from '../../supabase/supabaseClient';
 
 
-// ── validateAnimalData ────────────────────────────────────────────────────────
-// Checks the data object before any INSERT or UPDATE reaches the database.
-// Client-side validation gives instant feedback — no network round-trip needed.
-//
-// @param data — the animal fields object from the form
-// @returns    — an errors object like { name: 'Name is required.' }
-//               Returns null when ALL fields are valid.
+// Validates before any insert or update. Only name and species are required;
+// age and weight are optional but must make sense if the user bothered to fill them in.
+// Returns an errors object, or null if everything checks out.
 export function validateAnimalData(data) {
   const errors = {};
 
-  // ── name ──────────────────────────────────────────────────────────────────
   if (!data.name || !data.name.trim()) {
-    // trim() removes leading/trailing whitespace so '   ' is treated as empty.
     errors.name = 'Animal name is required.';
   }
 
-  // ── species ───────────────────────────────────────────────────────────────
   if (!data.species || !data.species.trim()) {
     errors.species = 'Species is required (e.g., Cattle, Goat, Chicken).';
   }
 
-  // ── age_years ─────────────────────────────────────────────────────────────
-  // Age is optional — only validate if the user filled it in.
+  // Only validate age if the user actually entered something
   if (data.age_years !== undefined && data.age_years !== null && data.age_years !== '') {
     const age = Number(data.age_years);
     if (isNaN(age) || age < 0) {
@@ -33,8 +23,7 @@ export function validateAnimalData(data) {
     }
   }
 
-  // ── weight_kg ─────────────────────────────────────────────────────────────
-  // Weight is optional — only validate if the user filled it in.
+  // Same for weight — optional, but can't be zero or negative
   if (data.weight_kg !== undefined && data.weight_kg !== null && data.weight_kg !== '') {
     const weight = Number(data.weight_kg);
     if (isNaN(weight) || weight <= 0) {
@@ -46,78 +35,59 @@ export function validateAnimalData(data) {
 }
 
 
-// ── fetchAnimals ──────────────────────────────────────────────────────────────
-// Retrieves ALL animals that belong to the currently logged-in user.
-// Returns: array of animal objects.
-// Throws:  Supabase error on network failure or auth error.
+// Fetches all animals for the current user, newest first.
+// RLS on the database makes sure users only ever see their own animals.
 export async function fetchAnimals() {
   const { data, error } = await supabase
     .from('animals')
     .select('*')
-    .order('created_at', { ascending: false }); // newest first
-
-  if (error) throw error;
-  return data; // e.g. [{ id, user_id, name, species, breed, age_years, weight_kg, notes, created_at }]
-}
-
-
-// ── fetchAnimalById ───────────────────────────────────────────────────────────
-// Retrieves a single animal by its UUID.
-// Useful when loading a detail/edit view without re-fetching the full list.
-//
-// @param id — the UUID of the animal to fetch
-// Returns: a single animal object.
-export async function fetchAnimalById(id) {
-  const { data, error } = await supabase
-    .from('animals')
-    .select('*')
-    .eq('id', id)   // .eq('column', value) → WHERE id = ?
-    .single();       // .single() returns one object instead of an array,
-                     // and throws if 0 or >1 rows match
+    .order('created_at', { ascending: false });
 
   if (error) throw error;
   return data;
 }
 
 
-// ── createAnimal ──────────────────────────────────────────────────────────────
-// Inserts a new animal row for the current user.
-//
-// @param animalData — form fields: { name, species, breed?, age_years?, weight_kg?, notes? }
-// Returns: the newly created animal object (with its server-assigned id).
-export async function createAnimal(animalData) {
-  // Step 1: validate inputs before touching the network.
-  const errors = validateAnimalData(animalData);
-  if (errors) {
-    // Throw with the errors object stringified so the component can parse it.
-    throw new Error(JSON.stringify(errors));
-  }
-
-  // Step 2: get the current user's id to set as owner of this animal.
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('You must be logged in to add animals.');
-
-  // Step 3: insert the new row.
+// Fetches a single animal by id — useful if you need a detail view
+// without re-fetching the entire list.
+export async function fetchAnimalById(id) {
   const { data, error } = await supabase
     .from('animals')
-    .insert([{
-      ...animalData,         // spread all form fields
-      user_id: user.id,      // explicitly set the owner
-    }])
-    .select()   // ask Supabase to return the inserted row (with generated id)
-    .single();  // we inserted one row, so .single() gives us one object back
+    .select('*')
+    .eq('id', id)
+    .single(); // throws if 0 or more than 1 row matches
 
   if (error) throw error;
-  return data; // the saved animal, including its new UUID
+  return data;
 }
 
 
-// ── updateAnimal ──────────────────────────────────────────────────────────────
-// Overwrites the fields of an existing animal.
-//
-// @param id         — UUID of the animal to update
-// @param animalData — object with the fields to change (e.g. { name: 'New Name', age_years: 2 })
-// Returns: the updated animal object.
+// Inserts a new animal. We attach the current user's id so RLS knows who owns it.
+// Returns the saved row including the server-generated id.
+export async function createAnimal(animalData) {
+  const errors = validateAnimalData(animalData);
+  if (errors) {
+    throw new Error(JSON.stringify(errors));
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('You must be logged in to add animals.');
+
+  const { data, error } = await supabase
+    .from('animals')
+    .insert([{
+      ...animalData,
+      user_id: user.id,
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+
+// Updates an existing animal's fields. Only the fields passed in are changed.
 export async function updateAnimal(id, animalData) {
   const errors = validateAnimalData(animalData);
   if (errors) {
@@ -126,7 +96,7 @@ export async function updateAnimal(id, animalData) {
 
   const { data, error } = await supabase
     .from('animals')
-    .update(animalData)   // only the fields passed here are changed
+    .update(animalData)
     .eq('id', id)
     .select()
     .single();
@@ -136,17 +106,13 @@ export async function updateAnimal(id, animalData) {
 }
 
 
-// ── deleteAnimal ──────────────────────────────────────────────────────────────
-// Permanently removes an animal record.
-//
-// @param id — UUID of the animal to delete
-// Returns: nothing (void).
+// Permanently deletes an animal. RLS prevents deleting another user's animal
+// even if someone passes a foreign id.
 export async function deleteAnimal(id) {
   const { error } = await supabase
     .from('animals')
     .delete()
-    .eq('id', id);  // RLS prevents deleting another user's animal
+    .eq('id', id);
 
   if (error) throw error;
-  // No return value — the row is gone, there is nothing to return.
 }

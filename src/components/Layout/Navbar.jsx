@@ -1,47 +1,29 @@
-// ─── Navbar.jsx — Top Navigation Bar with Auth Dropdown ──────────────────────
-// The right side of the navbar shows:
-//   • "Sign In" button (when logged out) — clicking opens a dropdown panel
-//     with Sign In / Sign Up forms
-//   • Avatar + name + Sign Out (when logged in)
-// Clicking outside the dropdown closes it (via useRef + useEffect).
-
 import React, { useState, useEffect, useRef } from 'react';
 import './Navbar.css';
-import { signIn, signUp } from '../Auth/AuthAPI';  // API calls live in AuthAPI.js
+import { signIn, signUp, requestPasswordReset } from '../Auth/AuthAPI';
 
 const logo = process.env.PUBLIC_URL + '/logo.png';
 
 export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, onLogout, cartCount = 0, onCartClick }) {
 
-  // showPanel — whether the auth dropdown is open
   const [showPanel, setShowPanel] = useState(false);
+  const [mode,      setMode]      = useState('signin'); // 'signin' | 'signup' | 'forgot'
+  const [fields,    setFields]    = useState({ name: '', email: '', password: '', confirmPassword: '' });
+  const [error,     setError]     = useState('');
+  const [success,   setSuccess]   = useState('');
+  const [loading,   setLoading]   = useState(false);
 
-  // mode — which form is active inside the dropdown: 'signin' or 'signup'
-  const [mode, setMode] = useState('signin');
-
-  // fields — controlled values for all form inputs
-  const [fields, setFields] = useState({
-    name: '', email: '', password: '', confirmPassword: '',
-  });
-
-  // error — validation or API error message shown inside the dropdown
-  const [error, setError] = useState('');
-
-  // loading — true while the API call is in-flight; disables the submit button
-  const [loading, setLoading] = useState(false);
-
-  // panelRef — a ref attached to the dropdown container so we can detect outside clicks
+  // We attach this ref to the dropdown container so we can detect clicks outside it
   const panelRef = useRef(null);
 
-  // ── Close panel on outside click ───────────────────────────────────────────
-  // useEffect adds a mousedown listener when the panel is open, and removes it
-  // when the panel closes or the component unmounts (the returned cleanup function).
+  // Add a mousedown listener when the panel opens, clean it up when it closes.
+  // This is the standard "click outside to close" pattern for dropdowns.
   useEffect(() => {
     function handleOutsideClick(e) {
       if (panelRef.current && !panelRef.current.contains(e.target)) {
-        // Reset fields and error when dismissed by clicking outside
         setFields({ name: '', email: '', password: '', confirmPassword: '' });
         setError('');
+        setSuccess('');
         setMode('signin');
         setShowPanel(false);
       }
@@ -49,29 +31,22 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
     if (showPanel) {
       document.addEventListener('mousedown', handleOutsideClick);
     }
-    // Cleanup: remove listener when panel closes or component unmounts
     return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [showPanel]); // Re-run this effect whenever showPanel changes
+  }, [showPanel]);
 
-  // ── switchMode ─────────────────────────────────────────────────────────────
-  // Switches between Sign In and Sign Up, clearing all fields and errors.
   function switchMode(newMode) {
     setMode(newMode);
     setFields({ name: '', email: '', password: '', confirmPassword: '' });
     setError('');
+    setSuccess('');
   }
 
-  // ── handleChange ───────────────────────────────────────────────────────────
-  // Updates only the field that changed; clears error so old messages disappear.
   function handleChange(e) {
     const { name, value } = e.target;
     setError('');
     setFields((prev) => ({ ...prev, [name]: value }));
   }
 
-  // ── validate ───────────────────────────────────────────────────────────────
-  // Client-side checks before hitting the API.
-  // Returns an error string, or '' if all inputs are valid.
   function validate() {
     if (mode === 'signup' && !fields.name.trim())
       return 'Please enter your full name.';
@@ -86,8 +61,24 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
     return '';
   }
 
-  // ── handleSubmit ───────────────────────────────────────────────────────────
-  // Runs validation, calls the correct API function, stores session, notifies App.
+  async function handleForgot(e) {
+    e.preventDefault();
+    if (!fields.email.trim() || !/\S+@\S+\.\S+/.test(fields.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    try {
+      setLoading(true);
+      setError('');
+      await requestPasswordReset(fields.email);
+      setSuccess('Reset link sent! Check your inbox.');
+    } catch (err) {
+      setError('Could not send reset email. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -98,30 +89,24 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
       setLoading(true);
       setError('');
 
-      // Call signIn() or signUp() depending on active mode.
-      // Supabase returns { user, session } — session is stored automatically
-      // in localStorage by the Supabase client; we don't need to do it manually.
+      // Supabase stores the session in localStorage automatically — no need to do it ourselves
       const { user: authUser } = mode === 'signin'
         ? await signIn(fields.email, fields.password)
         : await signUp(fields.email, fields.password, fields.name);
 
-      // Build a plain display object for App.jsx state.
-      // Supabase stores the display name in user_metadata (set during signUp).
+      // Strip down to just the fields the UI actually needs
       const displayUser = {
         id:    authUser.id,
         email: authUser.email,
         name:  authUser.user_metadata?.full_name || authUser.email,
       };
 
-      // Notify App.jsx → user state updates → navbar re-renders showing avatar
-      onLogin(displayUser);
+      onLogin(displayUser); // notify App.jsx so user state updates everywhere
 
-      // Close the dropdown and reset the form
       setShowPanel(false);
       setFields({ name: '', email: '', password: '', confirmPassword: '' });
 
     } catch (err) {
-      // Supabase errors expose a .message string directly (no .response.data wrapper).
       setError(
         err.message ||
         (mode === 'signin' ? 'Invalid email or password.' : 'Could not create account.')
@@ -131,17 +116,14 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
     }
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <nav className="navbar">
 
-      {/* ── Brand ── */}
       <div className="navbar-brand">
         <img src={logo} alt="Agro Buddy" className="navbar-logo-img" />
         <span className="navbar-title">Agro Buddy</span>
       </div>
 
-      {/* ── Feature Tabs ── */}
       <ul className="navbar-tabs">
         {tabs.map((tab) => (
           <li key={tab.id}>
@@ -155,25 +137,26 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
         ))}
       </ul>
 
-      {/* ── Cart icon (always visible) ── */}
+      {/* Cart button — always visible so guests can see it, though they can't buy anything */}
       <button
         className="navbar-cart-btn"
         onClick={() => onTabChange('checkout')}
         title="View cart"
       >
         🛒
+        {/* Badge only appears when there's actually something in the cart */}
         {cartCount > 0 && (
           <span className="navbar-cart-badge">{cartCount}</span>
         )}
       </button>
 
-      {/* ── Auth Section (right side) ── */}
+      {/* Auth section — panelRef wraps both the button and the dropdown so outside
+          clicks are detected relative to the whole thing, not just the button */}
       <div className="navbar-auth-wrap" ref={panelRef}>
 
         {user ? (
-          /* ── Logged-in state: avatar + name + sign out ── */
           <div className="navbar-user">
-            {/* Circle avatar showing first letter of the user's name */}
+            {/* First letter of the user's name as a simple avatar */}
             <div className="navbar-avatar">
               {user.name ? user.name.charAt(0).toUpperCase() : '?'}
             </div>
@@ -183,12 +166,10 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
             </button>
           </div>
         ) : (
-          /* ── Logged-out state: Sign In button ── */
           <button
             className="navbar-signin-btn"
             onClick={() => {
-              // Always reset fields, error, and mode on every open AND close
-              // so the panel is always fresh — prevents stale values on reopen
+              // Always reset the form on open/close so previous state doesn't linger
               setFields({ name: '', email: '', password: '', confirmPassword: '' });
               setError('');
               setMode('signin');
@@ -199,106 +180,74 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
           </button>
         )}
 
-        {/* ── Auth Dropdown Panel ──
-            Only shown when no user is logged in AND the Sign In button was clicked */}
         {showPanel && !user && (
           <div className="nav-auth-panel">
 
-            {/* Panel header */}
-            <p className="nap-heading">Welcome to Agro Buddy</p>
+            <p className="nap-heading">
+              {mode === 'forgot' ? 'Reset Password' : 'Welcome to Agro Buddy'}
+            </p>
 
-            {/* Sign In / Sign Up toggle tabs */}
-            <div className="nap-tabs">
-              <button
-                type="button"
-                className={`nap-tab ${mode === 'signin' ? 'active' : ''}`}
-                onClick={() => switchMode('signin')}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                className={`nap-tab ${mode === 'signup' ? 'active' : ''}`}
-                onClick={() => switchMode('signup')}
-              >
-                Sign Up
-              </button>
-            </div>
+            {/* Tabs — hidden in forgot mode */}
+            {mode !== 'forgot' && (
+              <div className="nap-tabs">
+                <button type="button" className={`nap-tab ${mode === 'signin' ? 'active' : ''}`} onClick={() => switchMode('signin')}>Sign In</button>
+                <button type="button" className={`nap-tab ${mode === 'signup' ? 'active' : ''}`} onClick={() => switchMode('signup')}>Sign Up</button>
+              </div>
+            )}
 
-            {/* Form — onSubmit calls handleSubmit above */}
-            <form className="nap-form" onSubmit={handleSubmit}>
+            {/* ── Sign in / Sign up form ── */}
+            {mode !== 'forgot' && (
+              <form className="nap-form" onSubmit={handleSubmit}>
+                {mode === 'signup' && (
+                  <input className="input-field nap-input" type="text" name="name" value={fields.name} onChange={handleChange} placeholder="Full Name" autoComplete="name" />
+                )}
+                <input className="input-field nap-input" type="email" name="email" value={fields.email} onChange={handleChange} placeholder="Email Address" autoComplete="email" />
+                <input className="input-field nap-input" type="password" name="password" value={fields.password} onChange={handleChange} placeholder="Password" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} />
+                {mode === 'signup' && (
+                  <input className="input-field nap-input" type="password" name="confirmPassword" value={fields.confirmPassword} onChange={handleChange} placeholder="Confirm Password" autoComplete="new-password" />
+                )}
 
-              {/* Name — Sign Up only */}
-              {mode === 'signup' && (
-                <input
-                  className="input-field nap-input"
-                  type="text"
-                  name="name"
-                  value={fields.name}
-                  onChange={handleChange}
-                  placeholder="Full Name"
-                  autoComplete="name"
-                />
-              )}
+                {/* Forgot password link — sign-in only */}
+                {mode === 'signin' && (
+                  <button type="button" className="nap-forgot-link" onClick={() => switchMode('forgot')}>
+                    Forgot password?
+                  </button>
+                )}
 
-              <input
-                className="input-field nap-input"
-                type="email"
-                name="email"
-                value={fields.email}
-                onChange={handleChange}
-                placeholder="Email Address"
-                autoComplete="email"
-              />
+                {error && <p className="nap-error">{error}</p>}
 
-              <input
-                className="input-field nap-input"
-                type="password"
-                name="password"
-                value={fields.password}
-                onChange={handleChange}
-                placeholder="Password"
-                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-              />
+                <button type="submit" className="btn-primary nap-submit" disabled={loading}>
+                  {loading ? '…' : mode === 'signin' ? 'Sign In' : 'Create Account'}
+                </button>
+              </form>
+            )}
 
-              {/* Confirm Password — Sign Up only */}
-              {mode === 'signup' && (
-                <input
-                  className="input-field nap-input"
-                  type="password"
-                  name="confirmPassword"
-                  value={fields.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="Confirm Password"
-                  autoComplete="new-password"
-                />
-              )}
+            {/* ── Forgot password form ── */}
+            {mode === 'forgot' && (
+              <form className="nap-form" onSubmit={handleForgot}>
+                <p className="nap-forgot-sub">Enter your email and we'll send you a reset link.</p>
+                <input className="input-field nap-input" type="email" name="email" value={fields.email} onChange={handleChange} placeholder="Email Address" autoComplete="email" />
+                {error   && <p className="nap-error">{error}</p>}
+                {success && <p className="nap-success">{success}</p>}
+                {!success && (
+                  <button type="submit" className="btn-primary nap-submit" disabled={loading}>
+                    {loading ? '…' : 'Send Reset Link'}
+                  </button>
+                )}
+              </form>
+            )}
 
-              {/* Error message */}
-              {error && <p className="nap-error">{error}</p>}
-
-              {/* Submit */}
-              <button
-                type="submit"
-                className="btn-primary nap-submit"
-                disabled={loading}
-              >
-                {loading
-                  ? '...'
-                  : mode === 'signin' ? 'Sign In' : 'Create Account'}
-              </button>
-            </form>
-
-            {/* Switch mode link */}
             <p className="nap-switch">
-              {mode === 'signin' ? "No account? " : 'Have an account? '}
-              <button
-                type="button"
-                className="nap-switch-btn"
-                onClick={() => switchMode(mode === 'signin' ? 'signup' : 'signin')}
-              >
-                {mode === 'signin' ? 'Sign Up' : 'Sign In'}
-              </button>
+              {mode === 'forgot' ? (
+                <button type="button" className="nap-switch-btn" onClick={() => switchMode('signin')}>← Back to Sign In</button>
+              ) : (
+                <>
+                  {mode === 'signin' ? 'No account? ' : 'Have an account? '}
+                  <button type="button" className="nap-switch-btn" onClick={() => switchMode(mode === 'signin' ? 'signup' : 'signin')}>
+                    {mode === 'signin' ? 'Sign Up' : 'Sign In'}
+                  </button>
+                </>
+              )}
             </p>
           </div>
         )}

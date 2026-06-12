@@ -1,7 +1,7 @@
-// ─── App.jsx — Root Component ─────────────────────────────────────────────────
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import Navbar           from './components/Layout/Navbar';
+import Auth             from './components/Auth/Auth';
 import Home             from './components/Home/Home';
 import AnimalProfiles   from './components/AnimalProfiles/AnimalProfiles';
 import TaskList         from './components/TaskList/TaskList';
@@ -12,6 +12,7 @@ import VetFinder        from './components/VetFinder/VetFinder';
 import Checkout         from './components/Checkout/Checkout';
 import { getCurrentUser, onAuthStateChange, signOut } from './components/Auth/AuthAPI';
 
+// protected: true means the tab redirects to a sign-in prompt when no user is logged in
 const TABS = [
   { id: 'home',     label: 'Home',             protected: false },
   { id: 'animals',  label: 'Animal Profiles',  protected: true  },
@@ -22,6 +23,7 @@ const TABS = [
   { id: 'vets',     label: 'Vet Finder',        protected: false },
 ];
 
+// Maps tab id → component so we can render dynamically instead of a huge if/else chain
 const TAB_COMPONENTS = {
   home:     Home,
   animals:  AnimalProfiles,
@@ -34,9 +36,13 @@ const TAB_COMPONENTS = {
 };
 
 export default function App() {
-  const [user,      setUser]      = useState(null);
-  const [authReady, setAuthReady] = useState(false);
-  const [activeTab, setActiveTab] = useState('home');
+  const [user,         setUser]         = useState(null);
+  const [authReady,    setAuthReady]    = useState(false);
+  const [activeTab,    setActiveTab]    = useState('home');
+  const [recoveryMode, setRecoveryMode] = useState(false);
+
+  // autoAdd — when the Home dashboard "+" button is clicked, we navigate to that
+  // tab AND want its add-form to open automatically. This flag carries that intent.
   const [autoAdd,   setAutoAdd]   = useState(false);
 
   function handleTabChange(tabId, openAdd = false) {
@@ -44,15 +50,15 @@ export default function App() {
     setAutoAdd(openAdd);
   }
 
-  // ── Cart state ────────────────────────────────────────────────────────────
-  // Each cart item: { id, title, price, unit, seller_name, quantity }
+  // Cart lives here in App so it survives tab switches.
+  // Each item looks like: { id, title, price, unit, seller_name, quantity }
   const [cart, setCart] = useState([]);
 
-  // Add an item — if it's already in the cart, increment quantity instead.
   function addToCart(listing) {
     setCart((prev) => {
       const existing = prev.find((item) => item.id === listing.id);
       if (existing) {
+        // Already in cart — just bump the quantity instead of adding a duplicate
         return prev.map((item) =>
           item.id === listing.id
             ? { ...item, quantity: item.quantity + 1 }
@@ -63,28 +69,27 @@ export default function App() {
     });
   }
 
-  // Remove an item completely from the cart.
   function removeFromCart(id) {
     setCart((prev) => prev.filter((item) => item.id !== id));
   }
 
-  // Update the quantity of a specific cart item.
   function updateQty(id, qty) {
+    // If qty drops to zero, remove the item entirely instead of showing "0"
     if (qty < 1) { removeFromCart(id); return; }
     setCart((prev) =>
       prev.map((item) => item.id === id ? { ...item, quantity: qty } : item)
     );
   }
 
-  // Empty the entire cart (called after a successful order).
   function clearCart() {
     setCart([]);
   }
 
-  // Total number of individual units across all cart items (for the badge).
+  // The number shown on the cart badge — counts individual units, not distinct products
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // On mount: check if there's already a session (e.g., page was refreshed)
+  // and then subscribe to future auth changes (sign in, sign out, token refresh).
   useEffect(() => {
     getCurrentUser()
       .then((u) => { if (u) setUser(buildDisplayUser(u)); })
@@ -94,12 +99,16 @@ export default function App() {
     const { data: { subscription } } = onAuthStateChange((event, session) => {
       setUser(session?.user ? buildDisplayUser(session.user) : null);
       setAuthReady(true);
-      if (event === 'SIGNED_IN') setActiveTab('home');
+      // Send the user home after a fresh sign-in so they land on a clean slate
+      if (event === 'SIGNED_IN')         setActiveTab('home');
+      // Show the set-new-password overlay when the recovery link is followed
+      if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // Supabase user objects have a lot of noise — this strips it down to what the UI needs
   function buildDisplayUser(u) {
     return {
       id:    u.id,
@@ -114,16 +123,19 @@ export default function App() {
     try { await signOut(); } catch (err) { console.error(err); }
   }
 
+  // Don't render anything until we know whether someone is logged in.
+  // Without this, protected tabs would flash visible for a split second.
   if (!authReady) {
     return <div className="app-container"><div className="app-auth-loading">Loading…</div></div>;
   }
 
-  // Checkout is handled outside the normal tab guard — it's always accessible.
+  // Checkout is special — it's always accessible regardless of auth state
+  // because you need to be able to view it after placing an order.
   const isCheckout  = activeTab === 'checkout';
   const currentTab  = TABS.find((t) => t.id === activeTab);
   const Component   = TAB_COMPONENTS[activeTab] ?? Marketplace;
 
-  // Props passed to every rendered component.
+  // Everything a child component might ever need — passed down as a bundle
   const sharedProps = {
     user,
     cart,
@@ -138,6 +150,17 @@ export default function App() {
     onGoToMarket:   () => setActiveTab('market'),
   };
 
+  // When Supabase fires PASSWORD_RECOVERY (user followed the reset link),
+  // show the Auth overlay in 'reset' mode over everything else.
+  if (recoveryMode) {
+    return (
+      <Auth
+        forceMode="reset"
+        onResetDone={() => setRecoveryMode(false)}
+      />
+    );
+  }
+
   return (
     <div className="app-container">
       <Navbar
@@ -151,10 +174,10 @@ export default function App() {
       />
 
       <main className={`app-content${activeTab === 'home' ? ' app-content--home' : ''}`}>
-        {/* Checkout bypasses the normal protected-tab guard */}
         {isCheckout ? (
           <Component key="checkout" {...sharedProps} />
         ) : currentTab?.protected && !user ? (
+          // User hit a protected tab while signed out — show a prompt instead of the feature
           <div className="app-signin-prompt">
             <div className="app-signin-card">
               <h2 className="app-signin-title">Sign in to continue</h2>
@@ -165,6 +188,7 @@ export default function App() {
             </div>
           </div>
         ) : (
+          // key=user.id forces a full remount when the user changes so stale data doesn't linger
           <Component key={user?.id ?? 'guest'} {...sharedProps} />
         )}
       </main>

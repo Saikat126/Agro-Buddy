@@ -1,35 +1,17 @@
-// ─── AnimalProfiles.jsx — Feature: Animal Profiles ───────────────────────────
-// Displays a list of farm animals. Users can add a new animal via a form,
-// view existing profiles in cards, and delete animals they no longer need.
-//
-// State lives here. API calls are delegated to AnimalProfilesAPI.js.
-// Styling lives in AnimalProfiles.css.
-
-import React, { useState, useEffect } from 'react';   // useState for local state; useEffect for side effects
-import './AnimalProfiles.css';                         // Component-scoped styles
-import { fetchAnimals, createAnimal, deleteAnimal } from './AnimalProfilesAPI'; // API layer
+import React, { useState, useEffect } from 'react';
+import './AnimalProfiles.css';
+import { fetchAnimals, createAnimal, deleteAnimal } from './AnimalProfilesAPI';
 import { useConfirm } from '../shared/useConfirm';
 
-// ── Component ─────────────────────────────────────────────────────────────────
 export default function AnimalProfiles({ autoAdd, onClearAutoAdd }) {
 
-  // animals — the array of animal objects loaded from the server.
-  // Starts as an empty array so the page renders immediately (no null checks needed).
   const { confirm, dialog } = useConfirm();
-  const [animals, setAnimals] = useState([]);
-
-  // loading — true while we are waiting for the API to respond.
-  // Used to show a spinner or "Loading…" message instead of an empty list.
-  const [loading, setLoading] = useState(true);
-
-  // error — stores an error message string if the API call fails, otherwise null.
-  const [error, setError] = useState(null);
-
-  // showForm — controls whether the "Add Animal" form is visible.
-  // Defaults to false so the form is hidden until the user clicks the button.
+  const [animals,  setAnimals]  = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(null);
   const [showForm, setShowForm] = useState(false);
 
-  // Auto-open the add form when navigated here via the dashboard "+" button.
+  // When the Home dashboard "+" button sends us here, open the form automatically
   useEffect(() => {
     if (autoAdd) {
       setShowForm(true);
@@ -37,83 +19,52 @@ export default function AnimalProfiles({ autoAdd, onClearAutoAdd }) {
     }
   }, [autoAdd]);
 
-  // formData — a single state object that mirrors every input field in the form.
-  // Grouping all fields into one object (instead of individual useState calls)
-  // keeps the code compact and easy to reset.
+  // All form fields in one object — easier to reset everything at once
   const [formData, setFormData] = useState({
-    name: '',        // Animal's name (e.g., "Bessie")
-    species: '',     // Species (e.g., "Cow", "Sheep")
-    age_years: '',   // Must match the database column name
-    weight_kg: '',   // Must match the database column name
-    notes: '',       // Free-text notes about the animal
+    name:      '',
+    species:   '',
+    age_years: '',
+    weight_kg: '',
+    notes:     '',
   });
 
-  // ── useEffect: load animals on mount ───────────────────────────────────────
-  // useEffect with an empty dependency array [] runs exactly once:
-  // after the component first appears on screen (similar to componentDidMount).
-  // This is where we fetch the initial list of animals from the server.
+  // Load the animal list once when the component first mounts
   useEffect(() => {
-    loadAnimals();   // Defined below — calls the API and updates state
-  }, []);            // [] means "run this effect only on the first render"
+    loadAnimals();
+  }, []);
 
-  // ── loadAnimals ─────────────────────────────────────────────────────────────
-  // Async function that fetches the animals list and stores it in state.
-  // Also handles the loading flag and any errors.
   async function loadAnimals() {
     try {
-      setLoading(true);              // Show spinner while request is in flight
-      setError(null);                // Clear any previous error message
-
-      const data = await fetchAnimals();  // Await the API call from AnimalProfilesAPI.js
-      setAnimals(data);              // Store the returned array in state → triggers re-render
+      setLoading(true);
+      setError(null);
+      const data = await fetchAnimals();
+      setAnimals(data);
     } catch (err) {
-      // If the API call throws (network error, server error, etc.), catch it here.
-      // Store a human-readable message in state so we can display it to the user.
       setError('Failed to load animals. Please check your connection.');
-      console.error('fetchAnimals error:', err);  // Also log full error for debugging
+      console.error('fetchAnimals error:', err);
     } finally {
-      // finally runs whether the try succeeded or the catch ran.
-      // Always turn off the loading spinner when the request is done.
       setLoading(false);
     }
   }
 
-  // ── handleInputChange ───────────────────────────────────────────────────────
-  // Called every time the user types in any form input.
-  // e.target.name is the input's name attribute; e.target.value is what the user typed.
-  // The spread { ...formData } copies all existing fields, then [name]: value
-  // overwrites just the field that changed — a common React controlled-input pattern.
+  // One handler for all form inputs — e.target.name tells us which field changed
   function handleInputChange(e) {
-    const { name, value } = e.target;           // Destructure name and value from the event
-    setFormData((prev) => ({                    // Use functional update to avoid stale closures
-      ...prev,                                  // Keep all existing field values
-      [name]: value,                            // Override only the field that changed
-    }));
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   }
 
-  // ── handleAddAnimal ─────────────────────────────────────────────────────────
-  // Called when the user submits the "Add Animal" form.
-  // Validates inputs, sends data to the API, and refreshes the list on success.
   async function handleAddAnimal(e) {
-    e.preventDefault();   // Prevent the browser from reloading the page on form submit
+    e.preventDefault();
 
-    // Basic validation: name and species are required fields.
     if (!formData.name.trim() || !formData.species.trim()) {
       alert('Please enter at least a name and species.');
-      return;             // Stop here — don't call the API with incomplete data
+      return;
     }
 
     try {
-      // Send formData to the server. createAnimal() returns the saved animal with its new id.
       await createAnimal(formData);
-
-      // After a successful save, reload the full list so our UI matches the database.
-      await loadAnimals();
-
-      // Reset the form fields back to empty strings for the next entry.
+      await loadAnimals(); // re-fetch so the list reflects exactly what's in the database
       setFormData({ name: '', species: '', age_years: '', weight_kg: '', notes: '' });
-
-      // Hide the form after a successful submission.
       setShowForm(false);
     } catch (err) {
       setError('Failed to add animal. Please try again.');
@@ -121,17 +72,12 @@ export default function AnimalProfiles({ autoAdd, onClearAutoAdd }) {
     }
   }
 
-  // ── handleDelete ────────────────────────────────────────────────────────────
-  // Called when the user clicks "Delete" on an animal card.
-  // @param id — the unique id of the animal to remove.
   async function handleDelete(id) {
-    // Confirm before deleting — deletion is irreversible.
     if (!await confirm('Delete this animal profile?')) return;
 
     try {
-      await deleteAnimal(id);   // Tell the API to remove the record
-      // Remove the deleted animal from local state without re-fetching.
-      // filter() returns a new array that excludes the deleted animal.
+      await deleteAnimal(id);
+      // Remove from local state directly — no need to hit the server again
       setAnimals((prev) => prev.filter((animal) => animal.id !== id));
     } catch (err) {
       setError('Failed to delete animal.');
@@ -139,20 +85,17 @@ export default function AnimalProfiles({ autoAdd, onClearAutoAdd }) {
     }
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="animal-profiles">
       {dialog}
 
-      {/* Page header row: title on left, "Add Animal" button on right */}
       <div className="ap-header">
         <h2 className="section-title">Animal Profiles</h2>
-        {/* Toggle the form visibility when the button is clicked */}
         <button
           className="btn-primary"
           onClick={() => {
             if (showForm) {
-              // Cancelling — reset form fields before hiding
+              // Reset the form before hiding it so old values don't reappear next time
               setFormData({ name: '', species: '', age_years: '', weight_kg: '', notes: '' });
             }
             setShowForm((prev) => !prev);
@@ -162,21 +105,18 @@ export default function AnimalProfiles({ autoAdd, onClearAutoAdd }) {
         </button>
       </div>
 
-      {/* ── Add Animal Form ── (only visible when showForm === true) */}
       {showForm && (
-        // onSubmit triggers handleAddAnimal; the form element groups all inputs logically
         <form className="ap-form card" onSubmit={handleAddAnimal}>
           <h3 className="ap-form-title">New Animal Profile</h3>
 
-          {/* Each label/input pair: label describes the field; input collects the value */}
           <label className="ap-label">
             Name *
             <input
               className="input-field"
               type="text"
-              name="name"           // Must match the key in formData
-              value={formData.name} // Controlled: React sets the displayed value
-              onChange={handleInputChange}  // Update state on every keystroke
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
               placeholder="e.g. Bessie"
             />
           </label>
@@ -193,7 +133,7 @@ export default function AnimalProfiles({ autoAdd, onClearAutoAdd }) {
             />
           </label>
 
-          {/* Two fields side by side using CSS grid (see AnimalProfiles.css) */}
+          {/* Side by side with CSS grid */}
           <div className="ap-row">
             <label className="ap-label">
               Age (years)
@@ -203,7 +143,7 @@ export default function AnimalProfiles({ autoAdd, onClearAutoAdd }) {
                 name="age_years"
                 value={formData.age_years}
                 onChange={handleInputChange}
-                min="0"       // Prevent negative numbers in browsers that enforce min
+                min="0"
                 placeholder="e.g. 3"
               />
             </label>
@@ -224,7 +164,6 @@ export default function AnimalProfiles({ autoAdd, onClearAutoAdd }) {
 
           <label className="ap-label">
             Notes
-            {/* <textarea> for multi-line free-text notes */}
             <textarea
               className="input-field"
               name="notes"
@@ -235,44 +174,31 @@ export default function AnimalProfiles({ autoAdd, onClearAutoAdd }) {
             />
           </label>
 
-          {/* Submit button — triggers the form's onSubmit handler */}
           <button type="submit" className="btn-primary">Save Animal</button>
         </form>
       )}
 
-      {/* ── Status Messages ── */}
-      {/* Show a spinner/message while the API request is pending */}
       {loading && <p className="ap-loading">Loading animals...</p>}
+      {error   && <p className="ap-error">{error}</p>}
 
-      {/* Show the error message if the API call failed */}
-      {error && <p className="ap-error">{error}</p>}
-
-      {/* Show this message only when loading is done and the list is empty */}
       {!loading && !error && animals.length === 0 && (
         <p className="ap-empty">No animals yet. Add your first one above!</p>
       )}
 
-      {/* ── Animal Cards Grid ── */}
-      {/* Render one card per animal; only shown when we have data */}
       <div className="ap-grid">
         {animals.map((animal) => (
-          // key={animal.id} lets React efficiently update only changed cards
+          // key is required so React can tell which card changed when the list updates
           <div key={animal.id} className="ap-card card">
-            {/* Animal name as the card heading */}
             <h3 className="ap-card-name">{animal.name}</h3>
-
-            {/* Species displayed as a small colored badge */}
             <span className="ap-badge">{animal.species}</span>
 
-            {/* Animal details list */}
             <ul className="ap-details">
-              {/* Only render age/weight rows if the value exists (not empty string) */}
-              {animal.age_years  && <li>Age: <strong>{animal.age_years} yr</strong></li>}
-              {animal.weight_kg  && <li>Weight: <strong>{animal.weight_kg} kg</strong></li>}
-              {animal.notes  && <li>Notes: <em>{animal.notes}</em></li>}
+              {/* Only show these lines if the user actually provided a value */}
+              {animal.age_years && <li>Age: <strong>{animal.age_years} yr</strong></li>}
+              {animal.weight_kg && <li>Weight: <strong>{animal.weight_kg} kg</strong></li>}
+              {animal.notes     && <li>Notes: <em>{animal.notes}</em></li>}
             </ul>
 
-            {/* Delete button passes this animal's id to handleDelete */}
             <button
               className="btn-danger"
               onClick={() => handleDelete(animal.id)}

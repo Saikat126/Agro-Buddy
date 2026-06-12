@@ -1,20 +1,13 @@
-// ─── MarketplaceAPI.js — All CRUD operations for marketplace_items ────────────
-
 import { supabase } from '../../supabase/supabaseClient';
 
 
-// ── VALID_CATEGORIES ──────────────────────────────────────────────────────────
-// Mirror of the CHECK constraint in 03_marketplace_table.sql.
-// Defined here so the component can use it to build the category dropdown,
-// and so validateListingData() can check against the same list.
+// Keep this in sync with the CHECK constraint in the database migration.
+// Exporting it here means the form dropdown and the validator use the exact same list.
 export const VALID_CATEGORIES = ['Livestock', 'Crops', 'Equipment', 'Supplies', 'Other'];
 
 
-// ── validateListingData ───────────────────────────────────────────────────────
-// Client-side validation before INSERT or UPDATE.
-//
-// @param data — listing fields from the form
-// @returns    — errors object or null
+// Validates a listing before insert or update.
+// Returns an errors object, or null if everything looks good.
 export function validateListingData(data) {
   const errors = {};
 
@@ -29,7 +22,6 @@ export function validateListingData(data) {
   if (data.price === undefined || data.price === null || data.price === '') {
     errors.price = 'Price is required.';
   } else if (isNaN(Number(data.price)) || Number(data.price) <= 0) {
-    // Price must be a positive number. <= 0 catches zero and negative values.
     errors.price = 'Price must be a positive number.';
   }
 
@@ -45,33 +37,24 @@ export function validateListingData(data) {
 }
 
 
-// ── fetchListings ─────────────────────────────────────────────────────────────
-// Retrieves ALL available listings from ALL users (the community marketplace).
-//
-// .eq('available', true) filters out hidden/sold listings.
-// newest first so fresh listings appear at the top.
-//
-// Returns: array of listing objects.
+// Fetches all active listings from all users — this is the community marketplace.
+// .eq('available', true) hides sold or hidden listings.
 export async function fetchListings() {
   const { data, error } = await supabase
     .from('marketplace_items')
     .select('*')
-    .eq('available', true)                              // only active listings
-    .order('created_at', { ascending: false });          // newest first
+    .eq('available', true)
+    .order('created_at', { ascending: false }); // newest first
 
   if (error) throw error;
   return data;
 }
 
 
-// ── fetchListingsByCategory ───────────────────────────────────────────────────
-// Retrieves available listings filtered by a single category.
-//
-// @param category — one of VALID_CATEGORIES
-// Returns: array of listing objects in that category.
+// Fetches only listings in a specific category.
+// Guards against invalid category strings before touching the database.
 export async function fetchListingsByCategory(category) {
   if (!VALID_CATEGORIES.includes(category)) {
-    // Guard against invalid category strings before hitting the database.
     throw new Error(`Invalid category: "${category}". Must be one of: ${VALID_CATEGORIES.join(', ')}.`);
   }
 
@@ -79,7 +62,7 @@ export async function fetchListingsByCategory(category) {
     .from('marketplace_items')
     .select('*')
     .eq('available', true)
-    .eq('category', category)   
+    .eq('category', category)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -87,30 +70,21 @@ export async function fetchListingsByCategory(category) {
 }
 
 
-// ── fetchMyListings ───────────────────────────────────────────────────────────
-// Retrieves ALL listings (available AND hidden) owned by the current user.
-// Used for the "My Listings" / seller dashboard view.
-//
-// Returns: array of the current user's listing objects.
+// Fetches all of the current user's own listings, including hidden ones,
+// so they can manage them from their seller dashboard.
 export async function fetchMyListings() {
-  // No .eq('available', true) here — we want to show hidden listings too
-  // so the seller can re-activate or delete them.
+  // No .eq('available', true) here — we want hidden listings visible to the owner
   const { data, error } = await supabase
     .from('marketplace_items')
     .select('*')
     .order('created_at', { ascending: false });
 
-
   if (error) throw error;
   return data;
 }
 
 
-// ── createListing ─────────────────────────────────────────────────────────────
-// Publishes a new marketplace listing for the current user.
-//
-// @param listingData — { title, category, price, unit, seller_name, description?, image_url? }
-// Returns: the newly created listing object.
+// Publishes a new listing. available is set to true by default so it shows up immediately.
 export async function createListing(listingData) {
   const errors = validateListingData(listingData);
   if (errors) throw new Error(JSON.stringify(errors));
@@ -124,12 +98,12 @@ export async function createListing(listingData) {
       user_id:     user.id,
       title:       listingData.title.trim(),
       category:    listingData.category,
-      price:       Number(listingData.price),         
+      price:       Number(listingData.price),
       unit:        listingData.unit.trim(),
       seller_name: listingData.seller_name.trim(),
       description: listingData.description || null,
       image_url:   listingData.image_url   || null,
-      available:   true,                               
+      available:   true,
     }])
     .select()
     .single();
@@ -139,12 +113,7 @@ export async function createListing(listingData) {
 }
 
 
-// ── updateListing ─────────────────────────────────────────────────────────────
 // Edits the fields of an existing listing.
-//
-// @param id          — UUID of the listing to update
-// @param listingData — fields to change
-// Returns: the updated listing object.
 export async function updateListing(id, listingData) {
   const errors = validateListingData(listingData);
   if (errors) throw new Error(JSON.stringify(errors));
@@ -160,26 +129,6 @@ export async function updateListing(id, listingData) {
       description: listingData.description || null,
       image_url:   listingData.image_url   || null,
     })
-    .eq('id', id)    
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
-
-// ── toggleAvailability ────────────────────────────────────────────────────────
-// Shows or hides a listing without deleting it.
-// Hiding is useful when an item sells or is temporarily out of stock.
-//
-// @param id        — UUID of the listing
-// @param available — true = show listing, false = hide listing
-// Returns: the updated listing object.
-export async function toggleAvailability(id, available) {
-  const { data, error } = await supabase
-    .from('marketplace_items')
-    .update({ available })   // only the `available` column is changed
     .eq('id', id)
     .select()
     .single();
@@ -189,11 +138,22 @@ export async function toggleAvailability(id, available) {
 }
 
 
-// ── deleteListing ─────────────────────────────────────────────────────────────
-// Permanently deletes a listing.
-//
-// @param id — UUID of the listing to delete
-// Returns: nothing (void).
+// Shows or hides a listing without actually deleting it.
+// Handy when something is temporarily out of stock.
+export async function toggleAvailability(id, available) {
+  const { data, error } = await supabase
+    .from('marketplace_items')
+    .update({ available })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+
+// Permanently removes a listing. RLS prevents removing another user's listing.
 export async function deleteListing(id) {
   const { error } = await supabase
     .from('marketplace_items')

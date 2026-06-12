@@ -133,6 +133,57 @@
   transform: none;              /* Override the hover lift so it stays flat */
 }
 
+/* Forgot password link */
+.auth-forgot-link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: right;
+  align-self: flex-end;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-forgot-link:hover {
+  color: var(--color-primary-dk);
+}
+
+/* Forgot / Reset mode heading */
+.auth-mode-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.auth-mode-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: 6px;
+}
+
+.auth-mode-sub {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+/* Success message box */
+.auth-success {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  color: #15803d;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 10px 14px;
+  text-align: center;
+  line-height: 1.5;
+}
+
 /* ── Bottom "switch mode" line ── */
 .auth-switch {
   text-align: center;
