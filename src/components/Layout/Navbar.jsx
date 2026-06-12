@@ -73,7 +73,7 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
       await requestPasswordReset(fields.email);
       setSuccess('Reset link sent! Check your inbox.');
     } catch (err) {
-      setError('Could not send reset email. Please try again.');
+      setError(err.message || 'Could not send reset email. Please try again.');
     } finally {
       setLoading(false);
     }
