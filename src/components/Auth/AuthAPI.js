@@ -101,6 +101,30 @@ export async function requestPasswordReset(email) {
 }
 
 
+// Uploads a profile photo to the 'avatars' Supabase Storage bucket and
+// stores the public URL in user_metadata so every component gets it via onAuthStateChange.
+export async function uploadAvatar(userId, file) {
+  const ext  = file.name.split('.').pop().toLowerCase();
+  const path = `${userId}/avatar.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(path, file, { upsert: true });
+  if (uploadError) throw uploadError;
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(path);
+
+  const { error: metaError } = await supabase.auth.updateUser({
+    data: { avatar_url: publicUrl },
+  });
+  if (metaError) throw metaError;
+
+  return publicUrl;
+}
+
+
 // Updates the current user's password. Only valid during a PASSWORD_RECOVERY session.
 export async function updatePassword(newPassword) {
   const { data: { session } } = await supabase.auth.getSession();

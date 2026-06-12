@@ -111,9 +111,10 @@ export default function App() {
   // Supabase user objects have a lot of noise — this strips it down to what the UI needs
   function buildDisplayUser(u) {
     return {
-      id:    u.id,
-      email: u.email,
-      name:  u.user_metadata?.full_name || u.email,
+      id:        u.id,
+      email:     u.email,
+      name:      u.user_metadata?.full_name || u.email,
+      avatarUrl: u.user_metadata?.avatar_url || null,
     };
   }
 
