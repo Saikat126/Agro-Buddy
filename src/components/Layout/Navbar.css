@@ -421,6 +421,30 @@
   transform: none;
 }
 
+.npp-forgot-pw-link {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s;
+  width: 100%;
+}
+
+.npp-forgot-pw-link:hover {
+  color: var(--color-primary);
+}
+
+.npp-forgot-pw-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ── Auth Dropdown Panel ── */
 .nav-auth-panel {
   position: absolute;

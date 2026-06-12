@@ -17,7 +17,7 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
   // ── Profile panel ──────────────────────────────────────────────────────────
   const [showProfile,     setShowProfile]     = useState(false);
   const [profileView,     setProfileView]     = useState('main'); // 'main' | 'password'
-  const [pwFields,        setPwFields]        = useState({ newPassword: '', confirmPassword: '' });
+  const [pwFields,        setPwFields]        = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [profileError,    setProfileError]    = useState('');
   const [profileSuccess,  setProfileSuccess]  = useState('');
   const [profileLoading,  setProfileLoading]  = useState(false);
@@ -32,7 +32,7 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
     if (!user) {
       setShowProfile(false);
       setProfileView('main');
-      setPwFields({ newPassword: '', confirmPassword: '' });
+      setPwFields({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setProfileError('');
       setProfileSuccess('');
     }
@@ -53,15 +53,21 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
     return () => document.removeEventListener('mousedown', onOutside);
   }, [showPanel]);
 
+  // Reset profile view to 'main' whenever the panel closes (any close method)
+  useEffect(() => {
+    if (!showProfile) {
+      setProfileView('main');
+      setPwFields({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setProfileError('');
+      setProfileSuccess('');
+    }
+  }, [showProfile]);
+
   // Close profile panel on outside click
   useEffect(() => {
     function onOutside(e) {
       if (profileRef.current && !profileRef.current.contains(e.target)) {
         setShowProfile(false);
-        setProfileView('main');
-        setPwFields({ newPassword: '', confirmPassword: '' });
-        setProfileError('');
-        setProfileSuccess('');
       }
     }
     if (showProfile) document.addEventListener('mousedown', onOutside);
@@ -165,17 +171,37 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
 
   async function handlePasswordChange(e) {
     e.preventDefault();
-    if (pwFields.newPassword.length < 6) { setProfileError('Password must be at least 6 characters.'); return; }
+    if (!pwFields.currentPassword) { setProfileError('Please enter your current password.'); return; }
+    if (pwFields.newPassword.length < 6) { setProfileError('New password must be at least 6 characters.'); return; }
     if (pwFields.newPassword !== pwFields.confirmPassword) { setProfileError('Passwords do not match.'); return; }
     try {
       setProfileLoading(true);
       setProfileError('');
+      // Verify current password before allowing the change
+      try {
+        await signIn(user.email, pwFields.currentPassword);
+      } catch {
+        throw new Error('Current password is incorrect.');
+      }
       await updatePassword(pwFields.newPassword);
       setProfileSuccess('Password updated!');
-      setPwFields({ newPassword: '', confirmPassword: '' });
+      setPwFields({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => { setProfileView('main'); setProfileSuccess(''); }, 2000);
     } catch (err) {
       setProfileError(err.message || 'Failed to update password.');
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
+  async function handleForgotFromProfile() {
+    try {
+      setProfileLoading(true);
+      setProfileError('');
+      await requestPasswordReset(user.email);
+      setProfileSuccess(`Reset link sent to ${user.email}`);
+    } catch (err) {
+      setProfileError(err.message || 'Could not send reset email.');
     } finally {
       setProfileLoading(false);
     }
@@ -294,12 +320,20 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
                     <button
                       type="button"
                       className="npp-back-btn"
-                      onClick={() => { setProfileView('main'); setProfileError(''); setProfileSuccess(''); setPwFields({ newPassword: '', confirmPassword: '' }); }}
+                      onClick={() => { setProfileView('main'); setProfileError(''); setProfileSuccess(''); setPwFields({ currentPassword: '', newPassword: '', confirmPassword: '' }); }}
                     >
                       ← Back
                     </button>
                     <span className="npp-pw-title">Change Password</span>
                   </div>
+                  <input
+                    className="input-field npp-input"
+                    type="password"
+                    placeholder="Current password"
+                    value={pwFields.currentPassword}
+                    onChange={(e) => { setProfileError(''); setPwFields((p) => ({ ...p, currentPassword: e.target.value })); }}
+                    autoComplete="current-password"
+                  />
                   <input
                     className="input-field npp-input"
                     type="password"
@@ -319,9 +353,14 @@ export default function Navbar({ tabs, activeTab, onTabChange, user, onLogin, on
                   {profileError   && <p className="npp-error">{profileError}</p>}
                   {profileSuccess && <p className="npp-success">{profileSuccess}</p>}
                   {!profileSuccess && (
-                    <button type="submit" className="btn-primary npp-submit" disabled={profileLoading}>
-                      {profileLoading ? 'Updating…' : 'Update Password'}
-                    </button>
+                    <>
+                      <button type="submit" className="btn-primary npp-submit" disabled={profileLoading}>
+                        {profileLoading ? 'Updating…' : 'Update Password'}
+                      </button>
+                      <button type="button" className="npp-forgot-pw-link" onClick={handleForgotFromProfile} disabled={profileLoading}>
+                        Forgot your password?
+                      </button>
+                    </>
                   )}
                 </form>
               )}
