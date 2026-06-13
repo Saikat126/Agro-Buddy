@@ -86,7 +86,8 @@ export default function VetFinder({ user }) {
       setFormData({ name: '', clinic: '', phone: '', email: '', location: '', map_link: '' });
       setShowForm(false);
     } catch (err) {
-      setError('Failed to add vet. Please try again.');
+      const detail = err?.message || String(err);
+      setError(`Failed to add vet: ${detail}`);
       console.error(err);
     }
   }

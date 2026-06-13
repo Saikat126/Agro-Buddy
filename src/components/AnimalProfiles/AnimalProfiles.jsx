@@ -19,7 +19,7 @@ export default function AnimalProfiles({ autoAdd, onClearAutoAdd }) {
     }
   }, [autoAdd]);
 
-  // All form fields in one object — easier to reset everything at once
+  // All form fields in one object , easier to reset everything at once
   const [formData, setFormData] = useState({
     name:      '',
     species:   '',
